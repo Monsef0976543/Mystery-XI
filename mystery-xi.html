@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#040A16" />
+<title>Mystery XI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>tailwind.config = { theme: { extend: {
+  colors: { abyss: '#040A16', tunnel: '#0A1530', line: '#1B2A4A', volt: '#3DFF8F', chalk: '#E9F1FF', mist: '#8FA3C7' },
+  fontFamily: { display: ['"Big Shoulders Display"', 'Impact', 'sans-serif'], body: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'] } } } }</script>
+<style>
+body{margin:0;background-color:#040A16;color:#E9F1FF;font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+background-image:radial-gradient(900px 500px at 80% -10%,rgba(61,255,143,.10),transparent),radial-gradient(700px 500px at -10% 30%,rgba(27,42,74,.7),transparent);
+padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+:focus-visible{outline:2px solid #3DFF8F;outline-offset:3px}
+@keyframes sheen{0%,60%{transform:translateX(-120%)}100%{transform:translateX(220%)}}
+.sheen::after{content:'';position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(61,255,143,.22),transparent);animation:sheen 3.2s ease-out 1}
+@keyframes pop{0%{transform:scale(1.4);color:#3DFF8F}100%{transform:scale(1)}}
+@keyframes flash{from{background-color:rgba(61,255,143,.35)}to{background-color:transparent}}
+.pop{display:inline-block;animation:pop .35s ease-out}.flash{animation:flash .7s ease-out}
+@media (prefers-reduced-motion:reduce){.sheen::after,.pop,.flash{animation:none}}
+button{touch-action:manipulation;min-height:44px}input{font-size:16px}
+#mxi-err{position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#7f1d1d;color:#fff;font:13px/1.4 system-ui;padding:10px 12px;border-radius:8px;display:none;white-space:pre-wrap}</style>
+</head>
+<body>
+<div id="root"><p style="padding:2rem;color:#8FA3C7">Loading Mystery XI…</p></div>
+<div id="mxi-err" role="alert"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.js"></script>
+<script>window.MXI_CONFIG = { url: "https://myersatgxjkuzzjushwq.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15ZXJzYXRneGprdXp6anVzaHdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMzEzNzAsImV4cCI6MjExMDcwNzM3MH0.6z55gz76pLzKL-JmCft8R5QN3omagohF3KkrwH_YCj4" };</script>
+<script>
+(function () {
+  var box = document.getElementById('mxi-err');
+  function show(msg) { box.style.display = 'block'; box.textContent = 'Something went wrong (send this to your developer):\n' + msg; }
+  function note(msg) { box.style.display = 'block'; box.style.background = '#78350f'; box.textContent = msg; }
+  window.addEventListener('error', function (e) { show(e.message + (e.filename ? ' @ ' + e.filename + ':' + e.lineno : '')); });
+  window.addEventListener('unhandledrejection', function (e) { show(String(e.reason && e.reason.message || e.reason)); });
+  if (!window.React || !window.ReactDOM || !window.supabase) { document.getElementById('root').innerHTML = '<p style="padding:2rem;color:#fca5a5">Could not load React or Supabase from the CDN. Check your internet connection and reload.</p>'; return; }
+
+var defs = {}, cache = {};
+defs["App"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = App;
+const react_1 = require("react");
+const supabase_1 = require("./lib/supabase");
+const useSession_1 = require("./hooks/useSession");
+const steps = [
+    ['A player appears', 'Both managers see the same player for one position, with a starting price.'],
+    ['Bid or pass', 'Raise the bid within your budget, or pass. The highest bid when the clock ends wins.'],
+    ['The winner pays', 'The winning bid comes out of their €100 and the player joins their squad.'],
+    ['The loser gets a sealed card', 'They receive a hidden player from the same position, picked by the server.'],
+    ['Final reveal', 'After 11 rounds every sealed card is turned over and the squads are scored.'],
+];
+const features = [
+    ['Auctions run on the server', 'Bids, timers and winners are decided in the database, so both screens always agree.'],
+    ['Sealed cards stay sealed', 'A hidden player’s identity never reaches your browser before the reveal.'],
+    ['Six formations', '4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 3-4-3 and 4-1-4-1, chosen before kick-off.'],
+    ['Built for phones', 'Large bid buttons and a pitch view that fits a narrow screen.'],
+];
+function PlayPanel() {
+    const { session, loading } = (0, useSession_1.useSession)();
+    const [name, setName] = (0, react_1.useState)('');
+    const [busy, setBusy] = (0, react_1.useState)(false);
+    const [msg, setMsg] = (0, react_1.useState)(null);
+    (0, react_1.useEffect)(() => {
+        if (!session)
+            return;
+        supabase_1.supabase.from('profiles').select('display_name').eq('id', session.user.id).single()
+            .then(({ data }) => data && setName(data.display_name));
+    }, [session]);
+    if (!supabase_1.isConfigured)
+        return React.createElement("p", { className: "rounded-lg border border-line bg-tunnel p-4 text-sm text-mist" },
+            "Supabase isn\u2019t configured yet. Copy ",
+            React.createElement("code", null, ".env.example"),
+            " to ",
+            React.createElement("code", null, ".env"),
+            " and add your project URL and anon key (see README).");
+    async function start() {
+        setBusy(true);
+        setMsg(null);
+        const { error } = await supabase_1.supabase.auth.signInAnonymously();
+        if (error)
+            setMsg({ ok: false, text: /failed to fetch|load failed|networkerror/i.test(error.message)
+                    ? 'Couldn’t reach Supabase from this page. If you opened it inside a preview (for example the Claude app) or behind a blocker, download the file and open it in Chrome or Firefox, then try again.'
+                    : `Couldn’t sign you in: ${error.message}. If it mentions anonymous sign-ins, switch them on in Supabase (Authentication, sign-in providers).` });
+        setBusy(false);
+    }
+    async function save() {
+        if (!session)
+            return;
+        setBusy(true);
+        setMsg(null);
+        const { error } = await supabase_1.supabase.from('profiles').update({ display_name: name.trim() }).eq('id', session.user.id);
+        setMsg(error ? { ok: false, text: 'Names need 2–20 characters.' } : { ok: true, text: 'Name saved. Rooms open in the next build phase.' });
+        setBusy(false);
+    }
+    if (loading)
+        return React.createElement("p", { className: "text-mist" }, "Loading\u2026");
+    if (!session)
+        return (React.createElement("div", null,
+            React.createElement("button", { onClick: start, disabled: busy, className: "rounded-md bg-volt px-8 py-4 text-lg font-bold text-abyss transition hover:brightness-110 disabled:opacity-60" }, busy ? 'Signing in…' : 'Play now'),
+            msg && React.createElement("p", { role: "alert", className: "mt-3 text-sm text-red-300" }, msg.text)));
+    return (React.createElement("div", { className: "max-w-sm" },
+        React.createElement("label", { htmlFor: "name", className: "text-sm text-mist" }, "Your manager name"),
+        React.createElement("div", { className: "mt-1 flex gap-2" },
+            React.createElement("input", { id: "name", value: name, onChange: e => setName(e.target.value), maxLength: 20, className: "min-w-0 flex-1 rounded-md border border-line bg-tunnel px-3 py-3" }),
+            React.createElement("button", { onClick: save, disabled: busy, className: "rounded-md bg-volt px-5 font-bold text-abyss disabled:opacity-60" }, "Save name")),
+        msg && React.createElement("p", { role: msg.ok ? 'status' : 'alert', className: `mt-3 text-sm ${msg.ok ? 'text-volt' : 'text-red-300'}` }, msg.text)));
+}
+function Cards() {
+    return (React.createElement("div", { className: "relative mx-auto flex h-[22rem] w-full max-w-md items-center justify-center", "aria-hidden": "true" },
+        React.createElement("div", { className: "absolute left-2 top-4 w-44 -rotate-6 rounded-2xl border border-volt/60 bg-tunnel p-4 shadow-[0_0_40px_rgba(61,255,143,.15)] sm:w-48" },
+            React.createElement("div", { className: "flex justify-between font-display text-2xl font-black" },
+                React.createElement("span", null, "ST"),
+                React.createElement("span", { className: "text-volt" }, "\u20AC34")),
+            React.createElement("svg", { viewBox: "0 0 100 100", className: "my-3 h-32 w-full text-line" },
+                React.createElement("circle", { cx: "50", cy: "34", r: "17", fill: "currentColor" }),
+                React.createElement("path", { d: "M14 96c2-26 18-38 36-38s34 12 36 38z", fill: "currentColor" })),
+            React.createElement("p", { className: "text-sm text-mist" }, "Revealed to both managers")),
+        React.createElement("div", { className: "sheen absolute bottom-2 right-2 w-44 rotate-6 overflow-hidden rounded-2xl border border-line bg-abyss p-4 sm:w-48" },
+            React.createElement("div", { className: "font-display text-2xl font-black" }, "ST"),
+            React.createElement("div", { className: "my-3 grid h-32 place-items-center font-display text-8xl font-black text-mist/50" }, "?"),
+            React.createElement("p", { className: "text-sm text-mist" }, "Sealed until the final whistle"))));
+}
+function App() {
+    return (React.createElement("div", { className: "mx-auto max-w-5xl px-5 pb-16" },
+        React.createElement("header", { className: "flex items-center justify-between py-5" },
+            React.createElement("span", { className: "font-display text-3xl font-black tracking-tight" },
+                "MYSTERY ",
+                React.createElement("span", { className: "text-volt" }, "XI")),
+            React.createElement("a", { href: "#how", className: "text-sm text-mist hover:text-chalk" }, "How to play")),
+        React.createElement("main", null,
+            React.createElement("section", { className: "grid items-center gap-8 py-10 md:grid-cols-2 md:py-20" },
+                React.createElement("div", null,
+                    React.createElement("h1", { className: "font-display text-5xl font-black leading-[0.95] sm:text-7xl" }, "Win the player you can see, or gamble on the one you can\u2019t."),
+                    React.createElement("p", { className: "mt-5 max-w-md text-lg text-mist" }, "Two managers, \u20AC100 each, eleven auctions. Outbid your rival for a star, or save your money and take the sealed card."),
+                    React.createElement("div", { className: "mt-8" },
+                        React.createElement(PlayPanel, null))),
+                React.createElement(Cards, null)),
+            React.createElement("section", { id: "how", className: "scroll-mt-6 border-t border-line py-12" },
+                React.createElement("h2", { className: "font-display text-4xl font-black" }, "How a match works"),
+                React.createElement("ol", { className: "mt-6 divide-y divide-line" }, steps.map(([t, d], i) => (React.createElement("li", { key: t, className: "flex gap-4 py-4" },
+                    React.createElement("span", { className: "font-display text-3xl font-black text-volt" }, i + 1),
+                    React.createElement("div", null,
+                        React.createElement("h3", { className: "font-bold" }, t),
+                        React.createElement("p", { className: "text-mist" }, d))))))),
+            React.createElement("section", { className: "border-t border-line py-12" },
+                React.createElement("h2", { className: "font-display text-4xl font-black" }, "Made to be fair"),
+                React.createElement("dl", { className: "mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2" }, features.map(([t, d]) => (React.createElement("div", { key: t },
+                    React.createElement("dt", { className: "font-bold" }, t),
+                    React.createElement("dd", { className: "text-mist" }, d))))))),
+        React.createElement("footer", { className: "border-t border-line pt-6 text-sm text-mist" }, "Squads are scored by the total rating of the starting XI. Ratings are unofficial estimates, and player photos come from Wikipedia and Wikimedia Commons under their own licences.")));
+}
+
+};
+defs["Lobby"] = function (module, exports, require) {
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Lobby;
+const react_1 = require("react");
+const supabase_1 = require("./lib/supabase");
+const Auction_1 = __importDefault(require("./Auction"));
+const Reveal_1 = __importStar(require("./Reveal"));
+const useResync_1 = require("./useResync");
+const FORMATIONS = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '3-4-3', '4-1-4-1'];
+const LEVELS = [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']];
+const ACTIVE = ['waiting', 'ready', 'drafting', 'revealing'];
+const btn = 'rounded-md bg-volt px-5 py-3 font-bold text-abyss disabled:opacity-60';
+const inputCls = 'min-w-0 flex-1 rounded-md border border-line bg-tunnel px-3 py-3';
+function Chips({ label, value, options, onChange, disabled }) {
+    return (React.createElement("div", { role: "group", "aria-label": label, className: "flex flex-wrap gap-2" }, options.map(([v, text]) => (React.createElement("button", { key: v, "aria-pressed": value === v, disabled: disabled, onClick: () => onChange(v), className: `rounded-md border px-4 py-2 font-bold ${value === v ? 'border-volt bg-volt text-abyss' : 'border-line text-chalk'} disabled:opacity-50` }, text)))));
+}
+const FormationChips = (p) => React.createElement(Chips, { label: "Formation", options: FORMATIONS.map(f => [f, f]), ...p });
+function Tile({ title, text, onClick }) {
+    return (React.createElement("button", { onClick: onClick, className: "w-full rounded-2xl border border-line bg-tunnel p-4 text-left transition hover:border-volt/60 active:scale-[0.99]" },
+        React.createElement("div", { className: "font-display text-2xl font-black" }, title),
+        React.createElement("div", { className: "mt-1 text-sm text-mist" }, text)));
+}
+function Lobby({ session }) {
+    const me = session.user.id;
+    const [room, setRoom] = (0, react_1.useState)(null);
+    const [members, setMembers] = (0, react_1.useState)([]);
+    const [view, setView] = (0, react_1.useState)('home');
+    const [formation, setFormation] = (0, react_1.useState)('4-3-3');
+    const [level, setLevel] = (0, react_1.useState)('normal');
+    const [n1, setN1] = (0, react_1.useState)('');
+    const [n2, setN2] = (0, react_1.useState)('');
+    const [code, setCode] = (0, react_1.useState)('');
+    const [name, setName] = (0, react_1.useState)('');
+    const [err, setErr] = (0, react_1.useState)('');
+    const [note, setNote] = (0, react_1.useState)('');
+    const [busy, setBusy] = (0, react_1.useState)(false);
+    const [searching, setSearching] = (0, react_1.useState)(false);
+    const [secs, setSecs] = (0, react_1.useState)(0);
+    const [, tick] = (0, react_1.useState)(0);
+    const load = (0, react_1.useCallback)(async () => {
+        const { data: mine } = await supabase_1.supabase.from('game_participants').select('room_id, game_rooms(id,code,formation,status,host_id,mode)').eq('user_id', me);
+        let gone = [];
+        try {
+            gone = JSON.parse(localStorage.getItem('mxi-dismissed') ?? '[]');
+        }
+        catch { /* storage unavailable */ }
+        const rooms = (mine ?? []).map(m => m.game_rooms)
+            .filter((r) => !!r && (ACTIVE.includes(r.status) || (r.status === 'finished' && !gone.includes(r.id))))
+            .sort((x, y) => Number(x.status === 'finished') - Number(y.status === 'finished'));
+        const r = rooms[0] ?? null;
+        setRoom(r);
+        if (!r)
+            return setMembers([]);
+        const { data } = await supabase_1.supabase.from('game_participants').select('user_id, seat, is_ready, last_seen, profiles(display_name)').eq('room_id', r.id).order('seat');
+        setMembers((data ?? []));
+    }, [me]);
+    const online = (0, useResync_1.useResync)(load);
+    (0, react_1.useEffect)(() => {
+        load();
+        supabase_1.supabase.from('profiles').select('display_name').eq('id', me).single().then(({ data }) => { if (data) {
+            setName(data.display_name);
+            setN1(p => p || data.display_name);
+        } });
+    }, [load, me]);
+    const rid = room?.id;
+    (0, react_1.useEffect)(() => {
+        if (!rid)
+            return;
+        const ch = supabase_1.supabase.channel(`room-${rid}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_participants', filter: `room_id=eq.${rid}` }, load)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rooms', filter: `id=eq.${rid}` }, load)
+            .subscribe();
+        const beat = () => { supabase_1.supabase.rpc('heartbeat', { p_room: rid }).then(() => undefined); }; // the request is only sent once .then() runs
+        beat();
+        const hb = setInterval(beat, 10000), ui = setInterval(() => tick(n => n + 1), 5000);
+        return () => { supabase_1.supabase.removeChannel(ch); clearInterval(hb); clearInterval(ui); };
+    }, [rid, load]);
+    // Quick match: ask the server for an opponent every 3 seconds until it names a room.
+    (0, react_1.useEffect)(() => {
+        if (!searching)
+            return;
+        let alive = true;
+        const t0 = Date.now();
+        const poll = async () => {
+            const { data, error } = await supabase_1.supabase.rpc('find_match', { p_formation: formation });
+            if (!alive)
+                return;
+            if (error) {
+                setErr(error.message);
+                setSearching(false);
+            }
+            else if (data) {
+                setSearching(false);
+                load();
+            }
+        };
+        poll();
+        const p = setInterval(poll, 3000), s = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000);
+        return () => { alive = false; clearInterval(p); clearInterval(s); supabase_1.supabase.rpc('cancel_search').then(() => undefined); };
+    }, [searching, formation, load]);
+    async function run(fn, args) {
+        setBusy(true);
+        setErr('');
+        const { error } = await supabase_1.supabase.rpc(fn, args);
+        if (error)
+            setErr(error.message);
+        await load();
+        setBusy(false);
+    }
+    async function saveName() {
+        setNote('');
+        setErr('');
+        const { error } = await supabase_1.supabase.from('profiles').update({ display_name: name.trim() }).eq('id', me);
+        if (error)
+            setErr('Names need 2–20 characters.');
+        else
+            setNote('Name saved.');
+        load();
+    }
+    function go(v) { setView(v); setErr(''); setNote(''); setSearching(false); setSecs(0); }
+    const isHost = room?.host_id === me;
+    const mineRow = members.find(m => m.user_id === me);
+    const live = (m) => Date.now() - new Date(m.last_seen).getTime() < 30000;
+    if (room && (room.status === 'drafting' || room.status === 'revealing'))
+        return React.createElement(Auction_1.default, { session: session, room: room });
+    if (room && room.status === 'finished')
+        return React.createElement(Reveal_1.default, { session: session, room: room, onDone: () => {
+                try {
+                    const g = JSON.parse(localStorage.getItem('mxi-dismissed') ?? '[]');
+                    localStorage.setItem('mxi-dismissed', JSON.stringify([...g, room.id]));
+                }
+                catch { /* storage unavailable */ }
+                load();
+            } });
+    const back = React.createElement("button", { onClick: () => go('home'), className: "mb-4 text-sm text-mist underline" }, "\u2190 All game modes");
+    const messages = (React.createElement(React.Fragment, null,
+        err && React.createElement("p", { role: "alert", className: "mt-3 text-sm text-red-300" }, err),
+        note && React.createElement("p", { role: "status", className: "mt-3 text-sm text-volt" }, note)));
+    let body;
+    if (room) { // waiting room for a game played by code
+        body = room.mode !== 'code' ? React.createElement("p", { className: "mt-10 text-lg text-mist" }, "Starting your match\u2026") : (React.createElement("section", { className: "mt-6" },
+            React.createElement("p", { className: "text-mist" }, "Room code"),
+            React.createElement("div", { className: "flex items-center gap-4" },
+                React.createElement("span", { className: "font-display text-6xl font-black tracking-widest text-volt" }, room.code),
+                React.createElement("button", { onClick: () => navigator.clipboard.writeText(room.code).then(() => setNote('Code copied.')), className: "rounded-md border border-line px-3 py-2 text-sm" }, "Copy")),
+            React.createElement("h2", { className: "mt-8 font-display text-3xl font-black" }, "Formation"),
+            React.createElement("div", { className: "mt-2" },
+                React.createElement(Chips, { label: "Formation", value: room.formation, options: FORMATIONS.map(f => [f, f]), disabled: !isHost || busy, onChange: f => run('set_formation', { p_room: room.id, p_formation: f }) })),
+            !isHost && React.createElement("p", { className: "mt-2 text-sm text-mist" }, "The host picks the formation."),
+            React.createElement("h2", { className: "mt-8 font-display text-3xl font-black" }, "Managers"),
+            React.createElement("ul", { className: "mt-2 divide-y divide-line" }, [1, 2].map(seat => {
+                const m = members.find(x => x.seat === seat);
+                return (React.createElement("li", { key: seat, className: "flex items-center justify-between py-3" }, m ? React.createElement(React.Fragment, null,
+                    React.createElement("span", { className: "font-bold" },
+                        m.profiles?.display_name ?? 'Manager',
+                        m.user_id === me && ' (you)',
+                        m.user_id === room.host_id && ' · host'),
+                    React.createElement("span", { className: "text-sm text-mist" }, live(m) ? (m.is_ready ? 'Ready' : 'Not ready') : 'Offline')) : React.createElement("span", { className: "text-mist" }, "Waiting for an opponent\u2026")));
+            })),
+            React.createElement("p", { className: "mt-4 text-mist", role: "status" }, members.length < 2 ? 'Share the code with your friend.' : room.status === 'ready' ? 'Both managers are ready. The host can start the match.' : 'The match can begin once both managers are ready.'),
+            React.createElement("div", { className: "mt-4 flex gap-3" },
+                React.createElement("button", { disabled: busy || members.length < 2, onClick: () => run('set_ready', { p_room: room.id, p_ready: !mineRow?.is_ready }), className: btn }, mineRow?.is_ready ? 'Not ready' : 'Ready'),
+                isHost && room.status === 'ready' && React.createElement("button", { disabled: busy, onClick: () => run('start_match', { p_room: room.id }), className: btn }, "Start match"),
+                React.createElement("button", { disabled: busy, onClick: () => confirm('Leave this room?') && run('leave_room', { p_room: room.id }), className: "rounded-md border border-line px-5 py-3" }, "Leave room"))));
+    }
+    else if (view === 'friend') {
+        body = (React.createElement("section", { className: "mt-6 space-y-8" },
+            back,
+            React.createElement("div", null,
+                React.createElement("h2", { className: "font-display text-3xl font-black" }, "Create a room"),
+                React.createElement("p", { className: "mt-1 text-mist" }, "You get a code to share with your friend."),
+                React.createElement("button", { disabled: busy, onClick: () => run('create_room', { p_formation: '4-3-3' }), className: `${btn} mt-3` }, "Create room")),
+            React.createElement("div", null,
+                React.createElement("h2", { className: "font-display text-3xl font-black" }, "Join with a code"),
+                React.createElement("label", { htmlFor: "c", className: "mt-1 block text-mist" }, "Enter the 6-character code"),
+                React.createElement("div", { className: "mt-2 flex gap-2" },
+                    React.createElement("input", { id: "c", value: code, onChange: e => setCode(e.target.value.toUpperCase()), maxLength: 6, autoCapitalize: "characters", className: `${inputCls} font-display text-2xl tracking-widest` }),
+                    React.createElement("button", { disabled: busy || code.length !== 6, onClick: () => run('join_room', { p_code: code }), className: btn }, "Join")))));
+    }
+    else if (view === 'search') {
+        body = (React.createElement("section", { className: "mt-6" },
+            back,
+            React.createElement("h2", { className: "font-display text-3xl font-black" }, "Quick match"),
+            React.createElement("p", { className: "mt-1 text-mist" }, "We pair you with another player who is searching right now. The player who has waited longer sets the formation."),
+            React.createElement("div", { className: "mt-4" },
+                React.createElement("p", { className: "mb-2 text-sm text-mist" }, "Your preferred formation"),
+                React.createElement(FormationChips, { value: formation, onChange: setFormation, disabled: searching })),
+            !searching ? (React.createElement("button", { onClick: () => { setErr(''); setSecs(0); setSearching(true); }, className: `${btn} mt-6 w-full py-4 text-lg` }, "Find an opponent")) : (React.createElement("div", { className: "mt-6 rounded-2xl border border-line bg-tunnel p-4", role: "status" },
+                React.createElement("div", { className: "flex items-center gap-3" },
+                    React.createElement("span", { className: "h-3 w-3 animate-pulse rounded-full bg-volt" }),
+                    React.createElement("span", { className: "font-bold" },
+                        "Searching for an opponent\u2026 ",
+                        secs,
+                        "s")),
+                secs >= 15 && React.createElement("p", { className: "mt-2 text-sm text-mist" }, "Nobody else is searching right now. Keep waiting, or play the computer."),
+                React.createElement("div", { className: "mt-3 flex gap-3" },
+                    React.createElement("button", { onClick: () => setSearching(false), className: "rounded-md border border-line px-5 py-3" }, "Cancel"),
+                    secs >= 15 && React.createElement("button", { onClick: () => go('bot'), className: btn }, "Play the computer")))),
+            messages));
+    }
+    else if (view === 'bot') {
+        body = (React.createElement("section", { className: "mt-6" },
+            back,
+            React.createElement("h2", { className: "font-display text-3xl font-black" }, "Play the computer"),
+            React.createElement("p", { className: "mt-1 text-mist" }, "It bids with a budget plan of its own and drops out when a player costs more than it is worth to it."),
+            React.createElement("div", { className: "mt-4" },
+                React.createElement("p", { className: "mb-2 text-sm text-mist" }, "Difficulty"),
+                React.createElement(Chips, { label: "Difficulty", value: level, options: LEVELS, onChange: setLevel })),
+            React.createElement("div", { className: "mt-4" },
+                React.createElement("p", { className: "mb-2 text-sm text-mist" }, "Formation"),
+                React.createElement(FormationChips, { value: formation, onChange: setFormation })),
+            React.createElement("button", { disabled: busy, onClick: () => run('create_bot_room', { p_formation: formation, p_level: level }), className: `${btn} mt-6 w-full py-4 text-lg` }, "Start match"),
+            messages));
+    }
+    else if (view === 'local') {
+        body = (React.createElement("section", { className: "mt-6" },
+            back,
+            React.createElement("h2", { className: "font-display text-3xl font-black" }, "Same phone, two players"),
+            React.createElement("p", { className: "mt-1 text-mist" }, "Sit opposite each other with the phone between you. Each of you gets your own bid buttons."),
+            React.createElement("label", { htmlFor: "p1", className: "mt-4 block text-sm text-mist" }, "Player 1 (bottom of the screen)"),
+            React.createElement("input", { id: "p1", value: n1, onChange: e => setN1(e.target.value), maxLength: 20, className: `${inputCls} mt-1 w-full` }),
+            React.createElement("label", { htmlFor: "p2", className: "mt-3 block text-sm text-mist" }, "Player 2 (top of the screen)"),
+            React.createElement("input", { id: "p2", value: n2, onChange: e => setN2(e.target.value), maxLength: 20, placeholder: "Player 2", className: `${inputCls} mt-1 w-full` }),
+            React.createElement("div", { className: "mt-4" },
+                React.createElement("p", { className: "mb-2 text-sm text-mist" }, "Formation"),
+                React.createElement(FormationChips, { value: formation, onChange: setFormation })),
+            React.createElement("button", { disabled: busy, onClick: () => run('create_local_room', { p_formation: formation, p_name1: n1, p_name2: n2 }), className: `${btn} mt-6 w-full py-4 text-lg` }, "Start match"),
+            messages));
+    }
+    else {
+        body = (React.createElement("section", { className: "mt-6 space-y-3" },
+            React.createElement(Tile, { title: "Quick match", text: "Play a random opponent online.", onClick: () => go('search') }),
+            React.createElement(Tile, { title: "Play with a friend", text: "Create a room and share the code, or join your friend\u2019s code.", onClick: () => go('friend') }),
+            React.createElement(Tile, { title: "Play the computer", text: "Three difficulty levels, no waiting.", onClick: () => go('bot') }),
+            React.createElement(Tile, { title: "Same phone", text: "Two players, one screen, face to face.", onClick: () => go('local') }),
+            React.createElement("div", { className: "pt-6" },
+                React.createElement(Reveal_1.History, { me: me }))));
+    }
+    return (React.createElement("div", { className: "mx-auto max-w-xl px-5 pb-16" },
+        React.createElement(useResync_1.OfflineBanner, { online: online }),
+        React.createElement("header", { className: "py-5 font-display text-3xl font-black tracking-tight" },
+            "MYSTERY ",
+            React.createElement("span", { className: "text-volt" }, "XI")),
+        React.createElement("div", { className: "flex gap-2" },
+            React.createElement("label", { htmlFor: "n", className: "sr-only" }, "Manager name"),
+            React.createElement("input", { id: "n", value: name, onChange: e => setName(e.target.value), maxLength: 20, className: inputCls }),
+            React.createElement("button", { onClick: saveName, className: btn }, "Save name")),
+        (room || view === 'home' || view === 'friend') && messages,
+        body));
+}
+
+};
+defs["Auction"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Auction;
+exports.Photo = Photo;
+const react_1 = require("react");
+const supabase_1 = require("./lib/supabase");
+const sound_1 = require("./sound");
+const useResync_1 = require("./useResync");
+function Auction({ session, room }) {
+    const me = session.user.id;
+    const local = room.mode === 'local', bot = room.mode === 'bot';
+    const [parts, setParts] = (0, react_1.useState)([]);
+    const [rounds, setRounds] = (0, react_1.useState)([]);
+    const [assigns, setAssigns] = (0, react_1.useState)([]);
+    const [players, setPlayers] = (0, react_1.useState)({});
+    const [bids, setBids] = (0, react_1.useState)([]);
+    const [cfg, setCfg] = (0, react_1.useState)({ starting_price: 1, min_increment: 1, bid_reset_seconds: 10 });
+    const [matchId, setMatchId] = (0, react_1.useState)();
+    const [offset, setOffset] = (0, react_1.useState)(0);
+    const [now, setNow] = (0, react_1.useState)(Date.now());
+    const [err, setErr] = (0, react_1.useState)('');
+    const [busy, setBusy] = (0, react_1.useState)(false);
+    const [flip, setFlip] = (0, react_1.useState)(true);
+    const [managers, setManagers] = (0, react_1.useState)({});
+    const [mAssigns, setMAssigns] = (0, react_1.useState)([]);
+    const lastTry = (0, react_1.useRef)(0);
+    const load = (0, react_1.useCallback)(async () => {
+        const { data: m } = await supabase_1.supabase.from('matches').select('id').eq('room_id', room.id).order('started_at', { ascending: false }).limit(1).single();
+        if (!m)
+            return;
+        setMatchId(m.id);
+        const [p, r, a, s, ma] = await Promise.all([
+            supabase_1.supabase.from('game_participants').select('user_id, seat, budget_remaining, nickname, profiles(display_name)').eq('room_id', room.id).order('seat'),
+            supabase_1.supabase.from('auction_rounds').select('*').eq('match_id', m.id).order('round_no'),
+            supabase_1.supabase.from('player_assignments').select('*').eq('match_id', m.id).order('slot'),
+            supabase_1.supabase.from('game_settings').select('starting_price, min_increment, bid_reset_seconds').eq('room_id', room.id).single(),
+            supabase_1.supabase.from('manager_assignments').select('id, user_id, round_id, manager_id, is_mystery, price').eq('match_id', m.id),
+        ]);
+        const rs = (r.data ?? []);
+        setParts((p.data ?? []));
+        setRounds(rs);
+        setAssigns((a.data ?? []));
+        if (s.data)
+            setCfg(s.data);
+        const { data: pl } = await supabase_1.supabase.from('football_players').select('id, full_name, club, nationality, overall, main_position, is_sample, is_legend, photo_url, photo_credit').in('id', rs.map(x => x.revealed_player_id).filter((x) => !!x));
+        setPlayers(Object.fromEntries((pl ?? []).map(x => [x.id, x])));
+        setMAssigns((ma.data ?? []));
+        const mids = [...new Set(rs.map(x => x.revealed_manager_id).filter((x) => !!x))];
+        const { data: mg } = mids.length ? await supabase_1.supabase.from('managers').select('id, full_name, nationality, photo_url, photo_credit, manager_abilities(tactical_style, ability_name, description, target_positions, bonus)').in('id', mids) : { data: [] };
+        setManagers(Object.fromEntries((mg ?? []).map(x => [x.id, x])));
+        const open = rs.find(x => x.status === 'open');
+        if (open) {
+            const { data: b } = await supabase_1.supabase.from('bids').select('id, round_id, user_id, kind, amount').eq('round_id', open.id).order('created_at');
+            setBids((b ?? []));
+        }
+        else
+            setBids([]);
+    }, [room.id]);
+    const sync = (0, react_1.useCallback)(async () => {
+        const t0 = Date.now();
+        const { data } = await supabase_1.supabase.rpc('server_now');
+        if (data)
+            setOffset(new Date(data).getTime() - (t0 + (Date.now() - t0) / 2));
+    }, []);
+    (0, react_1.useEffect)(() => { load(); sync(); const t = setInterval(sync, 30000); return () => clearInterval(t); }, [load, sync]);
+    (0, react_1.useEffect)(() => { const t = setInterval(() => setNow(Date.now()), 100); return () => clearInterval(t); }, []);
+    const online = (0, useResync_1.useResync)(load);
+    // Bids only ever raise current_bid, so an older update can never overwrite a newer one.
+    const merge = (0, react_1.useCallback)((n) => setRounds(rs => rs.map(r => r.id === n.id && (n.status === 'resolved' || n.current_bid >= r.current_bid) ? { ...r, ...n } : r)), []);
+    (0, react_1.useEffect)(() => {
+        if (!matchId)
+            return;
+        const f = { schema: 'public', filter: `match_id=eq.${matchId}` };
+        const ch = supabase_1.supabase.channel(`match-${matchId}`)
+            .on('postgres_changes', { ...f, event: 'UPDATE', table: 'auction_rounds' }, p => { const n = p.new; merge(n); if (n.status === 'resolved')
+            load(); })
+            .on('postgres_changes', { ...f, event: 'INSERT', table: 'auction_rounds' }, load)
+            .on('postgres_changes', { ...f, event: '*', table: 'player_assignments' }, load)
+            .on('postgres_changes', { ...f, event: '*', table: 'manager_assignments' }, load)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_participants', filter: `room_id=eq.${room.id}` }, load)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bids' }, p => { const b = p.new; setBids(bs => bs.some(x => x.id === b.id) ? bs : [...bs, b]); })
+            .subscribe();
+        return () => { supabase_1.supabase.removeChannel(ch); };
+    }, [matchId, room.id, load, merge]);
+    const cur = rounds.find(r => r.status === 'open');
+    const curId = cur?.id;
+    const msLeft = cur ? new Date(cur.ends_at).getTime() - (now + offset) : 0;
+    const left = Math.max(0, Math.ceil(msLeft / 1000));
+    const pct = Math.min(100, Math.max(0, (msLeft / (cfg.bid_reset_seconds * 1000)) * 100));
+    (0, react_1.useEffect)(() => {
+        if (cur && msLeft <= 0 && now - lastTry.current > 400) {
+            lastTry.current = now;
+            supabase_1.supabase.rpc('resolve_round', { p_round: cur.id }).then(() => load());
+        }
+    }, [cur, msLeft, now, load]);
+    (0, react_1.useEffect)(() => {
+        if (!bot || !curId)
+            return;
+        const t = setInterval(() => { supabase_1.supabase.rpc('bot_tick', { p_round: curId }).then(() => undefined); }, 700);
+        return () => clearInterval(t);
+    }, [bot, curId]);
+    async function doBid(p, x) {
+        if (!cur)
+            return;
+        setBusy(true);
+        setErr('');
+        const { data, error } = local
+            ? await supabase_1.supabase.rpc('local_bid', { p_round: cur.id, p_seat: p.seat, p_amount: x })
+            : await supabase_1.supabase.rpc('place_bid', { p_round: cur.id, p_amount: x });
+        if (error)
+            setErr(error.message);
+        else if (data)
+            merge(data);
+        setBusy(false);
+    }
+    async function doPass(p) {
+        if (!cur)
+            return;
+        setBusy(true);
+        setErr('');
+        const { error } = local ? await supabase_1.supabase.rpc('local_pass', { p_round: cur.id, p_seat: p.seat }) : await supabase_1.supabase.rpc('pass_round', { p_round: cur.id });
+        if (error)
+            setErr(error.message);
+        await load();
+        setBusy(false);
+    }
+    async function reveal() {
+        setBusy(true);
+        setErr('');
+        const { error } = await supabase_1.supabase.rpc('reveal_match', { p_match: matchId });
+        if (error)
+            setErr(error.message);
+        await load();
+        setBusy(false);
+    }
+    async function quit() {
+        if (!confirm(room.mode === 'code' || room.mode === 'random' ? 'Leave this match? Your opponent wins by forfeit.' : 'Quit this match?'))
+            return;
+        const { error } = await supabase_1.supabase.rpc('leave_match', { p_room: room.id });
+        if (error)
+            setErr(error.message);
+    }
+    const pname = (p) => p?.nickname ?? p?.profiles?.display_name ?? 'Manager';
+    const nameOf = (id) => pname(parts.find(p => p.user_id === id));
+    const mine = parts.find(p => p.user_id === me);
+    const p1 = parts.find(p => p.seat === 1), p2 = parts.find(p => p.seat === 2);
+    const curBids = bids.filter(b => b.round_id === cur?.id);
+    const passedBy = (uid) => curBids.some(b => b.user_id === uid && b.kind === 'pass');
+    const leader = cur?.current_bidder_id ?? null;
+    const minBid = cur ? (leader ? cur.current_bid + cfg.min_increment : cfg.starting_price) : 0;
+    const base = leader ? cur.current_bid : 0;
+    const isMgr = cur?.kind === 'manager';
+    const shown = cur && cur.revealed_player_id ? players[cur.revealed_player_id] : undefined;
+    const shownM = cur && cur.revealed_manager_id ? managers[cur.revealed_manager_id] : undefined;
+    const ready = !!cur && !!(isMgr ? shownM : shown);
+    const last = [...rounds].reverse().find(r => r.status === 'resolved');
+    const lastMine = last && assigns.find(a => a.round_id === last.id && a.user_id === me);
+    const lastMineM = last && mAssigns.find(a => a.round_id === last.id && a.user_id === me);
+    const lastWon = last?.kind === 'manager' ? lastMineM : lastMine;
+    const lastMsg = !last ? null : last.kind === 'manager'
+        ? (lastMineM ? (lastMineM.is_mystery ? 'Manager auction: you received a sealed manager.' : `Manager auction: you won ${managers[last.revealed_manager_id ?? '']?.full_name ?? 'the manager'} for €${lastMineM.price}.`) : null)
+        : (lastMine ? (lastMine.is_mystery ? `Round ${last.round_no}: you received a sealed ${lastMine.position} card.` : `Round ${last.round_no}: you won ${players[last.revealed_player_id ?? '']?.full_name ?? 'the player'} for €${lastMine.price}.`) : null);
+    const mgrOf = (uid) => { const x = mAssigns.find(m => m.user_id === uid); return !x ? 'Not decided yet' : x.is_mystery ? 'Sealed manager' : `${managers[x.manager_id ?? '']?.full_name ?? '…'} · €${x.price}`; };
+    const label = (a) => { const pl = players[rounds.find(r => r.id === a.round_id)?.revealed_player_id ?? '']; return a.is_mystery ? 'Sealed card' : `${pl?.full_name ?? '…'} (${pl?.overall ?? ''})`; };
+    const urgent = left <= 3;
+    (0, react_1.useEffect)(() => { if (cur?.current_bidder_id)
+        (0, sound_1.play)('bid'); }, [cur?.id, cur?.current_bid]);
+    (0, react_1.useEffect)(() => { if (cur && left > 0 && left <= 3)
+        (0, sound_1.play)('tick'); }, [left]);
+    (0, react_1.useEffect)(() => { if (lastWon && !local)
+        (0, sound_1.play)(lastWon.is_mystery ? 'lose' : 'win'); }, [lastWon?.id]);
+    // Bid controls for one manager. In online and computer matches that is you; in a same-phone match each side has its own set.
+    const controls = (p) => {
+        const holding = leader === p.user_id, passed = passedBy(p.user_id), budget = p.budget_remaining;
+        const can = !!cur && msLeft > 0 && !busy && !passed;
+        const extra = [base + 5, base + 10].filter(x => x > minBid);
+        return (React.createElement(React.Fragment, null,
+            React.createElement("button", { disabled: !can || holding || minBid > budget, onClick: () => doBid(p, minBid), className: "mt-3 w-full rounded-md bg-volt py-5 text-xl font-black text-abyss active:scale-[0.99] disabled:opacity-40" }, leader ? `Increase bid to €${minBid}` : `Bid €${minBid}`),
+            React.createElement("div", { className: "mt-2 grid grid-cols-3 gap-2" },
+                extra.map(x => React.createElement("button", { key: x, disabled: !can || holding || x > budget, onClick: () => doBid(p, x), className: "rounded-md border border-volt/60 py-3 font-bold text-volt disabled:opacity-40" },
+                    "\u20AC",
+                    x)),
+                React.createElement("button", { disabled: !can || holding, onClick: () => doPass(p), className: "rounded-md border border-line py-3 font-bold disabled:opacity-40" }, passed ? 'Passed' : 'Pass')),
+            minBid > budget && !passed && React.createElement("p", { className: "mt-2 text-sm text-mist" }, "Not enough budget for another bid.")));
+    };
+    const history = React.createElement("ul", { className: "mt-3 max-h-28 space-y-1 overflow-y-auto text-sm text-mist" }, [...curBids].reverse().map(b => React.createElement("li", { key: b.id },
+        nameOf(b.user_id),
+        " ",
+        b.kind === 'pass' ? 'passed' : React.createElement(React.Fragment, null,
+            "bid ",
+            React.createElement("b", { className: "text-chalk" },
+                "\u20AC",
+                b.amount)))));
+    const errLine = err && React.createElement("p", { role: "alert", className: "mt-2 text-sm text-red-300" }, err);
+    const playerHead = cur && shown && (React.createElement(React.Fragment, null,
+        React.createElement("div", { className: "flex items-center justify-between" },
+            React.createElement("div", { className: "flex items-baseline gap-2" },
+                React.createElement("span", { className: "font-display text-5xl font-black" }, shown.overall),
+                React.createElement("span", { className: "font-bold text-volt" }, cur.position)),
+            React.createElement("div", { role: "timer", className: `font-display text-6xl font-black tabular-nums ${urgent ? 'text-red-300' : ''}` },
+                left,
+                "s")),
+        React.createElement("div", { className: "mt-2 h-2 overflow-hidden rounded-full bg-line" },
+            React.createElement("div", { className: `h-full transition-[width] duration-100 ease-linear ${urgent ? 'bg-red-400' : 'bg-volt'}`, style: { width: `${pct}%` } })),
+        React.createElement("div", { className: "mt-3 flex items-center gap-4" },
+            React.createElement(Photo, { url: shown.photo_url, name: shown.full_name, className: "h-24 w-24 shrink-0" }),
+            React.createElement("div", null,
+                React.createElement("h2", { className: "font-display text-3xl font-black leading-none" }, shown.full_name),
+                React.createElement("p", { className: "mt-1 text-sm text-mist" },
+                    shown.club,
+                    " \u00B7 ",
+                    shown.nationality,
+                    shown.is_legend && ' · Legend',
+                    shown.is_sample && ' · sample data'),
+                shown.photo_credit && React.createElement("p", { className: "mt-1 text-[10px] leading-tight text-mist" },
+                    "Photo: ",
+                    shown.photo_credit))),
+        React.createElement("div", { key: `${leader}-${cur.current_bid}`, role: "status", className: `flash mt-3 rounded-lg px-4 py-3 ${leader && (local || leader === me) ? 'bg-volt text-abyss' : leader ? 'border border-red-300/60 text-red-200' : 'border border-line text-mist'}` },
+            React.createElement("div", { className: "text-sm font-bold" }, leader ? (!local && leader === me ? 'You’re leading' : `${nameOf(leader)} is leading`) : 'No bids yet. Anyone can open.'),
+            React.createElement("div", { className: "pop font-display text-5xl font-black leading-none" },
+                "\u20AC",
+                leader ? cur.current_bid : cfg.starting_price,
+                !leader && React.createElement("span", { className: "ml-2 text-base font-body font-normal" }, "starting price")))));
+    // The manager lot: same clock, bar and leader banner as a player, plus the ability card that explains who gets the bonus.
+    const ab = shownM?.manager_abilities;
+    const affected = ab ? assigns.filter(a => a.user_id === me && ab.target_positions.includes(a.position)).length : 0;
+    const mgrHead = cur && shownM && ab && (React.createElement(React.Fragment, null,
+        React.createElement("div", { className: "flex items-center justify-between" },
+            React.createElement("div", null,
+                React.createElement("div", { className: "text-sm font-bold text-volt" }, "Manager auction"),
+                React.createElement("div", { className: "font-display text-3xl font-black leading-none" }, "Final lot")),
+            React.createElement("div", { role: "timer", className: `font-display text-6xl font-black tabular-nums ${urgent ? 'text-red-300' : ''}` },
+                left,
+                "s")),
+        React.createElement("div", { className: "mt-2 h-2 overflow-hidden rounded-full bg-line" },
+            React.createElement("div", { className: `h-full transition-[width] duration-100 ease-linear ${urgent ? 'bg-red-400' : 'bg-volt'}`, style: { width: `${pct}%` } })),
+        React.createElement("div", { className: "mt-3 flex items-center gap-4" },
+            React.createElement(Photo, { url: shownM.photo_url, name: shownM.full_name, className: "h-28 w-28 shrink-0" }),
+            React.createElement("div", null,
+                React.createElement("h2", { className: "font-display text-3xl font-black leading-none" }, shownM.full_name),
+                React.createElement("p", { className: "mt-1 text-sm text-mist" },
+                    shownM.nationality,
+                    " \u00B7 ",
+                    ab.tactical_style,
+                    " manager"),
+                shownM.photo_credit && React.createElement("p", { className: "mt-1 text-[10px] leading-tight text-mist" },
+                    "Photo: ",
+                    shownM.photo_credit))),
+        React.createElement("div", { className: "mt-3 rounded-lg border border-line p-3" },
+            React.createElement("div", { className: "font-bold" },
+                ab.ability_name,
+                " ",
+                React.createElement("span", { className: "text-volt" },
+                    "+",
+                    ab.bonus,
+                    " rating")),
+            React.createElement("p", { className: "mt-1 text-sm text-mist" }, ab.description),
+            React.createElement("div", { className: "mt-2 flex flex-wrap gap-1", "aria-label": "Positions that get the bonus" }, ab.target_positions.map(t => React.createElement("span", { key: t, className: "rounded border border-volt/60 px-2 py-0.5 text-xs font-bold text-volt" }, t))),
+            React.createElement("p", { className: "mt-2 text-sm" }, local ? 'The bonus applies only to players in these positions and never lifts a rating past 99.' : `Boosts ${affected} of your ${assigns.filter(a => a.user_id === me).length} players. The bonus applies only to these positions and never lifts a rating past 99.`)),
+        React.createElement("div", { key: `${leader}-${cur.current_bid}`, role: "status", className: `flash mt-3 rounded-lg px-4 py-3 ${leader && (local || leader === me) ? 'bg-volt text-abyss' : leader ? 'border border-red-300/60 text-red-200' : 'border border-line text-mist'}` },
+            React.createElement("div", { className: "text-sm font-bold" }, leader ? (!local && leader === me ? 'You’re leading' : `${nameOf(leader)} is leading`) : 'No bids yet. Anyone can open.'),
+            React.createElement("div", { className: "pop font-display text-5xl font-black leading-none" },
+                "\u20AC",
+                leader ? cur.current_bid : cfg.starting_price,
+                !leader && React.createElement("span", { className: "ml-2 text-base font-body font-normal" }, "starting price")))));
+    const head = isMgr ? mgrHead : playerHead;
+    const seatPanel = (p, rotated) => {
+        const isLeader = !!cur && leader === p.user_id;
+        return (React.createElement("section", { className: `rounded-2xl border p-3 transition-colors ${isLeader ? 'border-volt bg-volt/10' : 'border-line bg-tunnel'} ${rotated ? 'rotate-180' : ''}` },
+            React.createElement("div", { className: "flex items-baseline justify-between" },
+                React.createElement("span", { className: "font-bold" },
+                    pname(p),
+                    isLeader && React.createElement("b", { className: "text-volt" }, " \u00B7 leading")),
+                React.createElement("span", { className: "font-display text-3xl font-black" },
+                    "\u20AC",
+                    p.budget_remaining)),
+            cur && controls(p)));
+    };
+    if (!matchId)
+        return React.createElement("p", { className: "p-8 text-mist" }, "Loading match\u2026");
+    return (React.createElement("div", { className: "mx-auto max-w-xl px-5 pb-16" },
+        React.createElement(useResync_1.OfflineBanner, { online: online }),
+        React.createElement("header", { className: "flex items-center justify-between py-4" },
+            React.createElement("span", { className: "font-display text-3xl font-black" },
+                "MYSTERY ",
+                React.createElement("span", { className: "text-volt" }, "XI")),
+            React.createElement("span", { className: "flex items-center gap-2 text-sm text-mist" },
+                cur ? (isMgr ? 'Manager' : `${cur.round_no}/11`) : `${Math.min(rounds.length, 11)}/11`,
+                " ",
+                React.createElement(sound_1.MuteButton, null),
+                React.createElement("button", { onClick: quit, className: "rounded-md border border-line px-3 py-1 text-sm" }, "Quit"))),
+        !local && (React.createElement("div", { className: "grid grid-cols-2 gap-3" }, parts.map(p => (React.createElement("div", { key: p.user_id, className: `rounded-lg border p-3 transition-colors ${cur && p.user_id === leader ? 'border-volt bg-volt/10' : 'border-line'}` },
+            React.createElement("div", { className: "truncate text-sm text-mist" },
+                pname(p),
+                p.user_id === me && ' (you)',
+                cur && p.user_id === leader && React.createElement("b", { className: "text-volt" }, " \u00B7 leading")),
+            React.createElement("div", { className: "font-display text-3xl font-black" },
+                "\u20AC",
+                p.budget_remaining)))))),
+        lastMsg && !local && React.createElement("p", { role: "status", className: "mt-3 text-sm text-mist" }, lastMsg),
+        ready && local && p1 && p2 ? (React.createElement("div", { className: "mt-3 space-y-3" },
+            seatPanel(p2, flip),
+            React.createElement("section", { className: "rounded-2xl border border-volt/60 bg-tunnel p-4" },
+                head,
+                errLine,
+                history),
+            seatPanel(p1, false),
+            React.createElement("label", { className: "flex items-center gap-2 text-sm text-mist" },
+                React.createElement("input", { type: "checkbox", checked: flip, onChange: e => setFlip(e.target.checked) }),
+                " Face to face: flip ",
+                pname(p2),
+                "\u2019s side upside down"))) : ready ? (React.createElement("section", { className: "mt-4 rounded-2xl border border-volt/60 bg-tunnel p-4" },
+            head,
+            mine && controls(mine),
+            errLine,
+            history)) : room.status === 'revealing' ? (React.createElement("div", { className: "mt-6" },
+            React.createElement("p", { className: "text-lg" }, "All 11 rounds are done. Time to see who got what."),
+            React.createElement("button", { disabled: busy, onClick: reveal, className: "mt-3 rounded-md bg-volt px-6 py-4 text-lg font-bold text-abyss disabled:opacity-60" }, "Go to the final reveal"),
+            errLine)) : React.createElement("p", { className: "mt-6 text-lg" }, "Preparing the next round\u2026"),
+        parts.map(p => (React.createElement("section", { key: p.user_id, className: "mt-8" },
+            React.createElement("h3", { className: "font-display text-2xl font-black" }, !local && p.user_id === me ? 'Your squad' : `${pname(p)}’s squad`),
+            React.createElement("ul", { className: "mt-1 divide-y divide-line" }, assigns.filter(a => a.user_id === p.user_id).map(a => React.createElement("li", { key: a.id, className: "flex justify-between py-2" },
+                React.createElement("span", null,
+                    React.createElement("b", null, a.position),
+                    " ",
+                    label(a)),
+                React.createElement("span", { className: "text-mist" }, a.is_mystery ? '?' : `€${a.price}`)))),
+            React.createElement("p", { className: "mt-2 text-sm" },
+                React.createElement("b", null, "Manager"),
+                " ",
+                React.createElement("span", { className: "text-mist" }, mgrOf(p.user_id))))))));
+}
+function Photo({ url, name, className = 'mx-auto mt-3 h-44 w-44' }) {
+    const [bad, setBad] = (0, react_1.useState)(false);
+    if (url && !bad)
+        return React.createElement("img", { src: url, alt: name, referrerPolicy: "no-referrer", onError: () => setBad(true), className: `${className} rounded-xl object-cover object-top` });
+    return React.createElement("svg", { viewBox: "0 0 100 100", role: "img", "aria-label": "No photo available", className: `${className} text-line` },
+        React.createElement("circle", { cx: "50", cy: "34", r: "17", fill: "currentColor" }),
+        React.createElement("path", { d: "M14 96c2-26 18-38 36-38s34 12 36 38z", fill: "currentColor" }));
+}
+
+};
+defs["Reveal"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Reveal;
+exports.History = History;
+const react_1 = require("react");
+const supabase_1 = require("./lib/supabase");
+const sound_1 = require("./sound");
+const Auction_1 = require("./Auction");
+const ROWS = {
+    '4-3-3': [['LW', 'ST', 'RW'], ['CM', 'CDM', 'CM'], ['LB', 'CB', 'CB', 'RB'], ['GK']],
+    '4-4-2': [['ST', 'ST'], ['LW', 'CM', 'CM', 'RW'], ['LB', 'CB', 'CB', 'RB'], ['GK']],
+    '4-2-3-1': [['ST'], ['LW', 'CAM', 'RW'], ['CDM', 'CDM'], ['LB', 'CB', 'CB', 'RB'], ['GK']],
+    '3-5-2': [['ST', 'ST'], ['LB', 'CM', 'CDM', 'CM', 'RB'], ['CB', 'CB', 'CB'], ['GK']],
+    '3-4-3': [['LW', 'ST', 'RW'], ['LB', 'CM', 'CM', 'RB'], ['CB', 'CB', 'CB'], ['GK']],
+    '4-1-4-1': [['ST'], ['LW', 'CM', 'CM', 'RW'], ['CDM'], ['LB', 'CB', 'CB', 'RB'], ['GK']],
+};
+function Tile({ c, open }) {
+    const pl = open ? c.pl : undefined;
+    const bonus = open ? c.bd?.bonus ?? 0 : 0;
+    return (React.createElement("div", { className: "w-16 text-center" },
+        React.createElement("div", { className: `mx-auto grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 transition duration-500 ${open ? 'scale-100' : 'scale-95'} ${bonus > 0 ? 'border-volt shadow-[0_0_14px_rgba(61,255,143,.55)]' : c.a.is_mystery ? (open ? 'border-volt/60' : 'border-line bg-abyss') : 'border-chalk/60 bg-tunnel'}` }, pl ? (pl.photo_url ? React.createElement("img", { src: pl.photo_url, alt: pl.full_name, referrerPolicy: "no-referrer", onError: e => (e.currentTarget.style.display = 'none'), className: "h-full w-full object-cover object-top" }) : React.createElement("span", { className: "font-bold" }, c.bd?.effective ?? pl.overall)) : React.createElement("span", { className: "font-display text-2xl text-mist" }, "?")),
+        React.createElement("div", { className: "mt-1 truncate text-[11px] leading-tight" }, pl ? pl.full_name.split(' ').slice(-1)[0] : c.a.position),
+        React.createElement("div", { className: "text-[11px]" }, pl ? (bonus > 0 ? React.createElement(React.Fragment, null,
+            React.createElement("span", { className: "text-mist" }, c.bd?.base),
+            React.createElement("span", { className: "text-volt" },
+                " +",
+                bonus,
+                " = ",
+                c.bd?.effective)) : React.createElement("span", { className: "text-volt" }, c.bd?.effective ?? pl.overall)) : '')));
+}
+function Pitch({ formation, cells, shown }) {
+    const pool = [...cells].sort((x, y) => x.a.slot - y.a.slot);
+    const rows = (ROWS[formation] ?? ROWS['4-3-3']).map(row => row.map(pos => { const i = pool.findIndex(c => c.a.position === pos); return i < 0 ? undefined : pool.splice(i, 1)[0]; }));
+    return (React.createElement("div", { className: "rounded-2xl border border-line bg-gradient-to-b from-emerald-950 to-tunnel px-1 py-3" }, rows.map((row, ri) => React.createElement("div", { key: ri, className: "my-3 flex justify-around" }, row.map((c, ci) => c ? React.createElement(Tile, { key: c.a.id, c: c, open: !c.a.is_mystery || shown.has(c.a.id) }) : React.createElement("span", { key: ci }))))));
+}
+function ManagerCard({ m, open, eligible, total }) {
+    const mg = open ? m?.mg : undefined, ab = mg?.manager_abilities;
+    return (React.createElement("div", { className: `mb-3 flex items-center gap-3 rounded-2xl border p-3 transition-colors duration-500 ${mg ? 'border-volt/60 bg-tunnel' : 'border-line bg-abyss'}` },
+        mg ? React.createElement(Auction_1.Photo, { url: mg.photo_url, name: mg.full_name, className: "h-16 w-16 shrink-0" }) : React.createElement("div", { className: "grid h-16 w-16 shrink-0 place-items-center rounded-xl border border-line font-display text-3xl text-mist" }, "?"),
+        React.createElement("div", { className: "min-w-0 text-sm" },
+            React.createElement("div", { className: "text-xs font-bold text-volt" },
+                "Manager",
+                m && !m.a.is_mystery ? ` · won for €${m.a.price}` : ''),
+            mg && ab ? (React.createElement(React.Fragment, null,
+                React.createElement("div", { className: "truncate font-display text-xl font-black leading-tight" }, mg.full_name),
+                React.createElement("div", { className: "text-mist" },
+                    mg.nationality,
+                    " \u00B7 ",
+                    ab.tactical_style,
+                    " \u00B7 ",
+                    ab.ability_name),
+                React.createElement("div", { className: "mt-1" },
+                    "+",
+                    ab.bonus,
+                    " to ",
+                    ab.target_positions.join(', '),
+                    ". Boosts ",
+                    React.createElement("b", { className: "text-volt" }, eligible),
+                    " of ",
+                    total,
+                    " players."))) : React.createElement("div", { className: "font-display text-xl font-black leading-tight text-mist" }, m ? 'Sealed manager' : 'No manager'))));
+}
+function Reveal({ session, room, onDone }) {
+    const me = session.user.id;
+    const [data, setData] = (0, react_1.useState)(null);
+    const [shown, setShown] = (0, react_1.useState)(new Set());
+    const [running, setRunning] = (0, react_1.useState)(false);
+    const [err, setErr] = (0, react_1.useState)('');
+    (0, react_1.useEffect)(() => {
+        (async () => {
+            var _a;
+            const { data: m } = await supabase_1.supabase.from('matches').select('id, winner_id, scores, base_scores').eq('room_id', room.id).order('started_at', { ascending: false }).limit(1).single();
+            if (!m)
+                return;
+            const [p, a, r, ma, bd] = await Promise.all([
+                supabase_1.supabase.from('game_participants').select('user_id, budget_remaining, nickname, profiles(display_name)').eq('room_id', room.id).order('seat'),
+                supabase_1.supabase.from('player_assignments').select('*').eq('match_id', m.id),
+                supabase_1.supabase.from('auction_rounds').select('id, revealed_player_id').eq('match_id', m.id),
+                supabase_1.supabase.from('manager_assignments').select('id, user_id, manager_id, is_mystery, price').eq('match_id', m.id),
+                supabase_1.supabase.rpc('squad_breakdown', { p_match: m.id }), // base, bonus and effective rating per player, calculated by the server
+            ]);
+            const as = (a.data ?? []), mas = (ma.data ?? []);
+            const [ps, ms2] = await Promise.all([
+                supabase_1.supabase.from('mystery_secrets').select('assignment_id, player_id').in('assignment_id', as.map(x => x.id)),
+                supabase_1.supabase.from('manager_secrets').select('assignment_id, manager_id').in('assignment_id', mas.map(x => x.id)),
+            ]);
+            const secretP = Object.fromEntries((ps.data ?? []).map(x => [x.assignment_id, x.player_id]));
+            const secretM = Object.fromEntries((ms2.data ?? []).map(x => [x.assignment_id, x.manager_id]));
+            const rev = Object.fromEntries((r.data ?? []).filter(x => x.revealed_player_id).map(x => [x.id, x.revealed_player_id]));
+            const pids = [...Object.values(secretP), ...Object.values(rev)];
+            const mids = [...Object.values(secretM), ...mas.map(x => x.manager_id).filter((x) => !!x)];
+            const [pl, mg] = await Promise.all([
+                pids.length ? supabase_1.supabase.from('football_players').select('id, full_name, club, overall, photo_url').in('id', pids) : Promise.resolve({ data: [] }),
+                mids.length ? supabase_1.supabase.from('managers').select('id, full_name, nationality, photo_url, photo_credit, manager_abilities(tactical_style, ability_name, description, target_positions, bonus)').in('id', mids) : Promise.resolve({ data: [] }),
+            ]);
+            const byP = Object.fromEntries((pl.data ?? []).map(x => [x.id, x]));
+            const byM = Object.fromEntries((mg.data ?? []).map(x => [x.id, x]));
+            const bdBy = Object.fromEntries((bd.data ?? []).map(x => [x.assignment_id, x]));
+            const cells = {};
+            for (const x of as)
+                (cells[_a = x.user_id] || (cells[_a] = [])).push({ a: x, pl: byP[x.is_mystery ? secretP[x.id] : rev[x.round_id]], bd: bdBy[x.id] });
+            const mcell = {};
+            for (const x of mas)
+                mcell[x.user_id] = { a: x, mg: byM[x.is_mystery ? secretM[x.id] : x.manager_id ?? ''] };
+            setData({ match: m, parts: (p.data ?? []).sort((x, y) => Number(y.user_id === me) - Number(x.user_id === me)), cells, mcell });
+        })();
+    }, [room.id, me]);
+    if (!data)
+        return React.createElement("p", { className: "p-8 text-mist" }, "Loading the reveal\u2026");
+    // Sealed players are turned over first, then the sealed manager.
+    const sealed = [...Object.values(data.cells).flat().filter(c => c.a.is_mystery).sort((x, y) => x.a.slot - y.a.slot).map(c => c.a.id), ...Object.values(data.mcell).filter(c => c.a.is_mystery).map(c => c.a.id)];
+    const done = shown.size >= sealed.length;
+    const pn = (p) => p?.nickname ?? p?.profiles?.display_name ?? 'Manager';
+    const nameOf = (id) => pn(data.parts.find(p => p.user_id === id));
+    const solo = room.mode === 'local';
+    const w = data.match.winner_id;
+    const tot = (uid) => { const c = data.cells[uid] ?? []; const before = c.reduce((s, x) => s + (x.bd?.base ?? 0), 0), after = c.reduce((s, x) => s + (x.bd?.effective ?? 0), 0); return { before, after, n: c.filter(x => (x.bd?.bonus ?? 0) > 0).length }; };
+    const eligible = (uid) => { const t = data.mcell[uid]?.mg?.manager_abilities?.target_positions ?? []; return (data.cells[uid] ?? []).filter(x => t.includes(x.a.position)).length; };
+    function start() {
+        setRunning(true);
+        let i = 0;
+        const t = setInterval(() => { i++; (0, sound_1.play)('reveal'); setShown(new Set(sealed.slice(0, i))); if (i >= sealed.length) {
+            clearInterval(t);
+            setRunning(false);
+        } }, 700);
+    }
+    async function again() { const { error } = await supabase_1.supabase.rpc('rematch', { p_room: room.id }); if (error)
+        setErr(error.message); }
+    return (React.createElement("div", { className: "mx-auto max-w-xl px-5 pb-16" },
+        React.createElement("header", { className: "py-5 font-display text-3xl font-black" },
+            "MYSTERY ",
+            React.createElement("span", { className: "text-volt" }, "XI")),
+        !done ? (React.createElement("div", null,
+            React.createElement("p", { className: "text-lg" }, "All the auctions are done. Your sealed players and your sealed manager are about to be turned over."),
+            React.createElement("button", { onClick: start, disabled: running, className: "mt-3 rounded-md bg-volt px-6 py-4 text-lg font-bold text-abyss disabled:opacity-60" }, running ? 'Revealing…' : 'Reveal sealed cards'))) : (React.createElement("div", { role: "status" },
+            React.createElement("h1", { className: "font-display text-5xl font-black" }, w === me && !solo ? 'You win!' : w ? `${nameOf(w)} wins` : 'It’s a draw'),
+            React.createElement("p", { className: "mt-1 text-mist" }, "Scoring: the 11 players\u2019 ratings plus the manager\u2019s bonus. The manager adds his bonus only to players in his positions, a rating never goes above 99, and the manager is not one of the 11. The higher total after bonuses wins; ties go to the larger remaining budget. Ratings are unofficial estimates, so this is a game result, not a claim about real-world quality."))),
+        data.parts.map(p => {
+            const t = tot(p.user_id), mc = data.mcell[p.user_id], open = !!mc && (!mc.a.is_mystery || shown.has(mc.a.id));
+            const final = data.match.scores?.[p.user_id] ?? t.after, before = data.match.base_scores?.[p.user_id] ?? t.before;
+            return (React.createElement("section", { key: p.user_id, className: "mt-8" },
+                React.createElement("h2", { className: "mb-2 font-display text-2xl font-black" }, p.user_id === me && !solo ? 'Your XI' : `${pn(p)}’s XI`),
+                React.createElement(ManagerCard, { m: mc, open: open, eligible: eligible(p.user_id), total: (data.cells[p.user_id] ?? []).length }),
+                React.createElement(Pitch, { formation: room.formation, cells: data.cells[p.user_id] ?? [], shown: shown }),
+                done && (React.createElement("div", { className: "mt-2 rounded-lg border border-line p-3 text-sm" },
+                    React.createElement("div", { className: "flex justify-between" },
+                        React.createElement("span", null, "Players before manager"),
+                        React.createElement("b", null, before)),
+                    React.createElement("div", { className: "flex justify-between" },
+                        React.createElement("span", null,
+                            "Manager bonus (",
+                            t.n,
+                            " players boosted)"),
+                        React.createElement("b", { className: "text-volt" },
+                            "+",
+                            final - before)),
+                    React.createElement("div", { className: "flex justify-between border-t border-line pt-1" },
+                        React.createElement("span", null,
+                            "Final rating \u00B7 \u20AC",
+                            p.budget_remaining,
+                            " left"),
+                        React.createElement("b", { className: "text-volt" }, final))))));
+        }),
+        done && (React.createElement("div", { className: "mt-8 flex gap-3" },
+            React.createElement("button", { onClick: again, className: "rounded-md bg-volt px-6 py-3 font-bold text-abyss" }, "Play again"),
+            React.createElement("button", { onClick: onDone, className: "rounded-md border border-line px-6 py-3" }, "Back to home"))),
+        err && React.createElement("p", { role: "alert", className: "mt-3 text-sm text-red-300" }, err)));
+}
+function History({ me }) {
+    const [rows, setRows] = (0, react_1.useState)([]);
+    (0, react_1.useEffect)(() => {
+        (async () => {
+            const { data } = await supabase_1.supabase.from('matches').select('id, finished_at, winner_id, scores').eq('status', 'finished').order('finished_at', { ascending: false }).limit(10);
+            const list = (data ?? []);
+            const oppId = (m) => Object.keys(m.scores ?? {}).find(k => k !== me) ?? '';
+            const ids = [...new Set(list.map(oppId).filter(Boolean))];
+            const { data: pr } = ids.length ? await supabase_1.supabase.from('profiles').select('id, display_name').in('id', ids) : { data: [] };
+            const nm = Object.fromEntries((pr ?? []).map((x) => [x.id, x.display_name]));
+            setRows(list.map(m => ({ id: m.id, finished_at: m.finished_at, winner_id: m.winner_id, s: m.scores?.[me] ?? 0, o: m.scores?.[oppId(m)] ?? 0, opp: nm[oppId(m)] ?? 'Opponent' })));
+        })();
+    }, [me]);
+    if (!rows.length)
+        return null;
+    return (React.createElement("div", null,
+        React.createElement("h2", { className: "font-display text-3xl font-black" }, "Match history"),
+        React.createElement("ul", { className: "mt-2 divide-y divide-line" }, rows.map(r => React.createElement("li", { key: r.id, className: "flex justify-between py-2" },
+            React.createElement("span", null,
+                React.createElement("b", null, r.winner_id === me ? 'Won' : r.winner_id ? 'Lost' : 'Draw'),
+                " vs ",
+                r.opp),
+            React.createElement("span", { className: "text-mist" },
+                r.s,
+                "\u2013",
+                r.o,
+                " \u00B7 ",
+                new Date(r.finished_at).toLocaleDateString()))))));
+}
+
+};
+defs["Root"] = function (module, exports, require) {
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Root;
+const App_1 = __importDefault(require("./App"));
+const Lobby_1 = __importDefault(require("./Lobby"));
+const useSession_1 = require("./hooks/useSession");
+function Root() {
+    const { session, loading } = (0, useSession_1.useSession)();
+    if (loading)
+        return React.createElement("p", { className: "p-8 text-mist" }, "Loading\u2026");
+    return session ? React.createElement(Lobby_1.default, { session: session }) : React.createElement(App_1.default, null);
+}
+
+};
+defs["sound"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.play = play;
+exports.MuteButton = MuteButton;
+const react_1 = require("react");
+let ctx = null;
+const read = () => { try {
+    return localStorage.getItem('mxi-muted') === '1';
+}
+catch {
+    return false;
+} };
+let muted = read();
+const TONES = {
+    bid: [[660, 0, 0.08], [880, 0.08, 0.1]], tick: [[440, 0, 0.05]],
+    win: [[523, 0, 0.12], [659, 0.12, 0.12], [784, 0.24, 0.25]], lose: [[330, 0, 0.15], [247, 0.15, 0.25]], reveal: [[600, 0, 0.06], [900, 0.06, 0.12]],
+};
+function play(s) {
+    if (muted)
+        return;
+    try {
+        ctx ?? (ctx = new AudioContext());
+        if (ctx.state === 'suspended')
+            void ctx.resume();
+        for (const [f, t, d] of TONES[s]) {
+            const o = ctx.createOscillator(), g = ctx.createGain(), at = ctx.currentTime + t;
+            o.type = 'triangle';
+            o.frequency.value = f;
+            g.gain.setValueAtTime(0.08, at);
+            g.gain.exponentialRampToValueAtTime(0.0001, at + d);
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.start(at);
+            o.stop(at + d);
+        }
+    }
+    catch { /* audio unavailable */ }
+}
+function MuteButton() {
+    const [m, setM] = (0, react_1.useState)(muted);
+    return React.createElement("button", { "aria-pressed": m, "aria-label": m ? 'Turn sound on' : 'Turn sound off', className: "rounded-md border border-line px-3 py-1 text-sm", onClick: () => { muted = !muted; try {
+            localStorage.setItem('mxi-muted', muted ? '1' : '0');
+        }
+        catch { /* ignore */ } setM(muted); } }, m ? 'Sound off' : 'Sound on');
+}
+
+};
+defs["useResync"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.useResync = useResync;
+exports.OfflineBanner = OfflineBanner;
+const react_1 = require("react");
+// Reloads game state when the phone comes back online or the tab becomes visible again.
+function useResync(reload) {
+    const [online, setOnline] = (0, react_1.useState)(navigator.onLine);
+    (0, react_1.useEffect)(() => {
+        const up = () => { setOnline(true); reload(); };
+        const down = () => setOnline(false);
+        const vis = () => { if (document.visibilityState === 'visible')
+            reload(); };
+        window.addEventListener('online', up);
+        window.addEventListener('offline', down);
+        document.addEventListener('visibilitychange', vis);
+        return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); document.removeEventListener('visibilitychange', vis); };
+    }, [reload]);
+    return online;
+}
+function OfflineBanner({ online }) {
+    return online ? null : React.createElement("div", { role: "alert", className: "fixed inset-x-0 top-0 z-10 bg-red-500 py-2 text-center text-sm font-bold text-white" }, "You\u2019re offline. Reconnecting\u2026");
+}
+
+};
+defs["hooks/useSession"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.useSession = useSession;
+const react_1 = require("react");
+const supabase_1 = require("../lib/supabase");
+function useSession() {
+    const [session, setSession] = (0, react_1.useState)(null);
+    const [loading, setLoading] = (0, react_1.useState)(supabase_1.isConfigured);
+    (0, react_1.useEffect)(() => {
+        if (!supabase_1.isConfigured)
+            return;
+        supabase_1.supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
+        const { data } = supabase_1.supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+        return () => data.subscription.unsubscribe();
+    }, []);
+    return { session, loading };
+}
+
+};
+defs["lib/supabase"] = function (module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.supabase = exports.isConfigured = void 0;
+const supabase_js_1 = require("@supabase/supabase-js");
+const url = window.MXI_CONFIG.url;
+const key = window.MXI_CONFIG.key;
+exports.isConfigured = Boolean(url && key);
+// Placeholder values keep the app rendering when .env is missing; the UI shows a setup notice instead.
+exports.supabase = (0, supabase_js_1.createClient)(url ?? 'http://localhost', key ?? 'missing', { auth: { persistSession: true, autoRefreshToken: true } });
+
+};
+function norm(dir, name) { var parts = (dir ? dir.split('/') : []).concat(name.split('/')), out = []; parts.forEach(function (p) { if (p === '..') out.pop(); else if (p !== '.' && p !== '') out.push(p) }); return out.join('/') }
+function load(id) {
+  if (cache[id]) return cache[id].exports;
+  var m = { exports: {} }; cache[id] = m;
+  var dir = id.indexOf('/') > -1 ? id.slice(0, id.lastIndexOf('/')) : '';
+  defs[id](m, m.exports, function (name) {
+    if (name === 'react') return React;
+    if (name === '@supabase/supabase-js') return window.supabase;
+    if (name.charAt(0) === '.') return load(norm(dir, name));
+    throw new Error('Unknown module ' + name);
+  });
+  return m.exports;
+}
+window.__mxiLoad = load;
+  var cfg = window.MXI_CONFIG;
+  fetch(cfg.url + '/auth/v1/health', { headers: { apikey: cfg.key } }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); }).catch(function (e) {
+    note('Connection check failed (' + e.message + ').\nThis page cannot reach Supabase from where it is open. If you opened it inside a preview (for example the Claude app), download the file and open it in Chrome or Firefox instead. Ad blockers can also cause this.');
+  });
+  var Root = load('Root').default;
+  ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(React.StrictMode, null, React.createElement(Root)));
+})();
+</script>
+</body>
+</html>
